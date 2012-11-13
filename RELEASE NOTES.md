@@ -1,3 +1,39 @@
+Version 1.9.8
+
+- Added verboseLogging option to make it easier to diagnose why a new version isn't being correctly detected
+- Renamed debug property to previewMode as this better describes its function
+- Fixed a bug where certain types of download error were not correctly passed to the delegate
+
+Version 1.9.7
+
+- Fixed crash on iOS 4.x and Mac OS 10.6.x when compiled using Xcode 4.4
+
+Version 1.9.6
+
+- Added support for iOS6. Currently it does not appear to be possible to link users directly to the release notes page on iOS6, but iVersion will now at least open the app store on the app page without an error.
+- iVersion now displays correctly localised release notes
+- Removed appStoreLanguage property, as this is no longer used
+
+Version 1.9.5
+
+- Fixed cache policy so that version data is no longer cached between requests while app is running
+- Fixed typo in German translation
+
+Version 1.9.4
+
+- Now links users directly to update page on app store on iOS
+- Fixed a bug where advanced properties set in the delegate methods might be subsequently overridden by iVersion
+- Added disableAlertViewResizing option (see README for details)
+- Added Resizing Disabled example project
+- Added explicit 60-second timeout for remote version checks
+- iVersion will now no longer spawn multiple download threads if closed and re-opened whilst performing a check
+- Added Simplified Chinese translation
+
+Version 1.9.3
+
+- It is now possible again to use iVersion with apps that are not on the iOS or Mac app store using just the remoteVersionsPlist
+- It is now possible again to test release notes using debug mode
+
 Version 1.9.2
 
 - Added logic to prevent UIAlertView collapsing in landscape mode

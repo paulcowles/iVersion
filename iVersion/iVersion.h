@@ -1,7 +1,7 @@
 //
 //  iVersion.h
 //
-//  Version 1.9.2
+//  Version 1.9.8
 //
 //  Created by Nick Lockwood on 26/01/2011.
 //  Copyright 2011 Charcoal Design
@@ -34,7 +34,7 @@
 //
 //  ARC Helper
 //
-//  Version 1.2.2
+//  Version 2.1
 //
 //  Created by Nick Lockwood on 05/01/2012.
 //  Copyright 2012 Charcoal Design
@@ -45,41 +45,33 @@
 //  https://gist.github.com/1563325
 //
 
-#ifndef AH_RETAIN
+#ifndef ah_retain
 #if __has_feature(objc_arc)
-#define AH_RETAIN(x) (x)
-#define AH_RELEASE(x) (void)(x)
-#define AH_AUTORELEASE(x) (x)
-#define AH_SUPER_DEALLOC (void)(0)
+#define ah_retain self
+#define ah_dealloc self
+#define release self
+#define autorelease self
 #else
-#define __AH_WEAK
-#define AH_WEAK assign
-#define AH_RETAIN(x) [(x) retain]
-#define AH_RELEASE(x) [(x) release]
-#define AH_AUTORELEASE(x) [(x) autorelease]
-#define AH_SUPER_DEALLOC [super dealloc]
+#define ah_retain retain
+#define ah_dealloc dealloc
+#define __bridge
 #endif
 #endif
 
-//  Weak reference support
+//  Weak delegate support
 
-#ifndef AH_WEAK
-#if defined __IPHONE_OS_VERSION_MIN_REQUIRED
-#if __IPHONE_OS_VERSION_MIN_REQUIRED > __IPHONE_4_3
-#define __AH_WEAK __weak
-#define AH_WEAK weak
+#ifndef ah_weak
+#import <Availability.h>
+#if (__has_feature(objc_arc)) && \
+((defined __IPHONE_OS_VERSION_MIN_REQUIRED && \
+__IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_5_0) || \
+(defined __MAC_OS_X_VERSION_MIN_REQUIRED && \
+__MAC_OS_X_VERSION_MIN_REQUIRED > __MAC_10_7))
+#define ah_weak weak
+#define __ah_weak __weak
 #else
-#define __AH_WEAK __unsafe_unretained
-#define AH_WEAK unsafe_unretained
-#endif
-#elif defined __MAC_OS_X_VERSION_MIN_REQUIRED
-#if __MAC_OS_X_VERSION_MIN_REQUIRED > __MAC_10_6
-#define __AH_WEAK __weak
-#define AH_WEAK weak
-#else
-#define __AH_WEAK __unsafe_unretained
-#define AH_WEAK unsafe_unretained
-#endif
+#define ah_weak unsafe_unretained
+#define __ah_weak __unsafe_unretained
 #endif
 #endif
 
@@ -91,6 +83,17 @@
 #else
 #import <Cocoa/Cocoa.h>
 #endif
+
+
+extern NSString *const iVersionErrorDomain;
+
+
+typedef enum
+{
+    iVersionErrorBundleIdDoesNotMatchAppStore = 1,
+    iVersionErrorApplicationNotFoundOnAppStore
+}
+iVersionErrorCode;
 
 
 @interface NSString(iVersion)
@@ -124,33 +127,36 @@
 {
     @private
     
-    NSDictionary *remoteVersionsDict;
-    NSError *downloadError;
-    NSUInteger appStoreID;
-    NSString *remoteVersionsPlistURL;
-    NSString *localVersionsPlistPath;
-    NSString *applicationVersion;
-    NSString *applicationBundleID;
-    NSString *appStoreLanguage;
-    NSString *appStoreCountry;
-    BOOL showOnFirstLaunch;
-    BOOL groupNotesByVersion;
-    float checkPeriod;
-    float remindPeriod;
-    NSString *inThisVersionTitle;
-    NSString *updateAvailableTitle;
-    NSString *versionLabelFormat;
-    NSString *okButtonLabel;
-    NSString *ignoreButtonLabel;
-    NSString *remindButtonLabel;
-    NSString *downloadButtonLabel;
-    BOOL checkAtLaunch;
-    BOOL debug;
-    NSURL *updateURL;
-    NSString *versionDetails;
-    id<iVersionDelegate> __AH_WEAK delegate;
-    id visibleLocalAlert;
-    id visibleRemoteAlert;
+    NSDictionary *_remoteVersionsDict;
+    NSError *_downloadError;
+    NSUInteger _appStoreID;
+    NSString *_remoteVersionsPlistURL;
+    NSString *_localVersionsPlistPath;
+    NSString *_applicationVersion;
+    NSString *_applicationBundleID;
+    NSString *_appStoreCountry;
+    BOOL _showOnFirstLaunch;
+    BOOL _groupNotesByVersion;
+    float _checkPeriod;
+    float _remindPeriod;
+    NSString *_inThisVersionTitle;
+    NSString *_updateAvailableTitle;
+    NSString *_versionLabelFormat;
+    NSString *_okButtonLabel;
+    NSString *_ignoreButtonLabel;
+    NSString *_remindButtonLabel;
+    NSString *_downloadButtonLabel;
+    BOOL _disableAlertViewResizing;
+    BOOL _onlyPromptIfMainWindowIsAvailable;
+    BOOL _checkAtLaunch;
+    BOOL _verboseLogging;
+    BOOL _previewMode;
+    NSURL *_updateURL;
+    NSString *_versionDetails;
+    id<iVersionDelegate> __ah_weak _delegate;
+    id _visibleLocalAlert;
+    id _visibleRemoteAlert;
+    BOOL _currentlyChecking;
 }
 #endif
 
@@ -167,7 +173,6 @@
 //application details - these are set automatically
 @property (nonatomic, copy) NSString *applicationVersion;
 @property (nonatomic, copy) NSString *applicationBundleID;
-@property (nonatomic, copy) NSString *appStoreLanguage;
 @property (nonatomic, copy) NSString *appStoreCountry;
 
 //usage settings - these have sensible defaults
@@ -186,8 +191,11 @@
 @property (nonatomic, copy) NSString *downloadButtonLabel;
 
 //debugging and automatic checks
+@property (nonatomic, assign) BOOL disableAlertViewResizing;
+@property (nonatomic, assign) BOOL onlyPromptIfMainWindowIsAvailable;
 @property (nonatomic, assign) BOOL checkAtLaunch;
-@property (nonatomic, assign) BOOL debug;
+@property (nonatomic, assign) BOOL verboseLogging;
+@property (nonatomic, assign) BOOL previewMode;
 
 //advanced properties for implementing custom behaviour
 @property (nonatomic, copy) NSString *ignoredVersion;
@@ -195,7 +203,7 @@
 @property (nonatomic, strong) NSDate *lastReminded;
 @property (nonatomic, strong) NSURL *updateURL;
 @property (nonatomic, assign) BOOL viewedVersionDetails;
-@property (nonatomic, AH_WEAK) id<iVersionDelegate> delegate;
+@property (nonatomic, ah_weak) id<iVersionDelegate> delegate;
 
 //manually control behaviour
 - (void)openAppPageInAppStore;

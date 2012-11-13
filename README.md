@@ -5,9 +5,13 @@ The Mac and iOS App Store update mechanism is somewhat cumbersome and disconnect
 
 Whilst it is not permitted to update an App Store app from within the app itself, there is no reason why an app should not inform the user that the new release is ready, and direct them to the App Store to download the update.
 
+And if your app is not on the App Store, either because it's an in-house/enterprise iOS app, or a Mac app delivered to customers outside of the store, you can't use the App Store update mechanism anyway.
+
 iVersion is a simple, *zero-config* class to allow iPhone and Mac App Store apps to automatically check for updates and inform the user about new features.
 
 iVersion automatically detects when the new version of an app is released on the App Store and informs the user with a helpful alert that links them directly to the app download page.
+
+Or if your app is not on the store, iVersion lets you specify a remote plist file to check for new releases, and a download URL where users can get the latest release.
 
 iVersion has an additional function, which is to tell users about important new features when they first run an app after downloading a new version.
 
@@ -15,8 +19,8 @@ iVersion has an additional function, which is to tell users about important new 
 Supported OS & SDK Versions
 -----------------------------
 
-* Supported build target - iOS 5.0 / Mac OS 10.7 (Xcode 4.3.1, Apple LLVM compiler 3.1)
-* Earliest supported deployment target - iOS 4.3 / Mac OS 10.6
+* Supported build target - iOS 6.0 / Mac OS 10.8 (Xcode 4.5, Apple LLVM compiler 4.1)
+* Earliest supported deployment target - iOS 5.0 / Mac OS 10.7
 * Earliest compatible deployment target - iOS 3.0 / Mac OS 10.6
 
 NOTE: 'Supported' means that the library has been tested with this version. 'Compatible' means that the library should work on this OS version (i.e. it doesn't rely on any unavailable SDK features) but is no longer being tested for compatibility and may require tweaking or bug fixes to run correctly.
@@ -41,9 +45,9 @@ To install iVersion into your app, drag the iVersion.h, .m and .bundle files int
 
 As of version 1.8, iVersion typically requires no configuration at all and will simply run automatically, using the Application's bundle ID to look it up on the App Store.
 
-**Note:** If you have apps with matching bundle IDs on both the Mac and iOS app stores (even if they use different capitalisation), the lookup mechanism won't work, so you'll need to set the appStoreID property, which is a numeric ID that can be found in iTunes Connect after you set up an app.
+**Note:** If you have apps with matching bundle IDs on both the Mac and iOS App Stores (even if they use different capitalisation), the lookup mechanism won't work, so you'll need to set the appStoreID property, which is a numeric ID that can be found in iTunes Connect after you set up an app. This is only applicable to App Store apps.
 
-Additionally, you can specify an optional remotely hosted Plist file that will be used for the release notes instead of the ones on iTunes. This has 3 key advantages:
+Alternatively (or additionally) you can specify an optional remotely hosted Plist file that will be used for the release notes instead of the ones on iTunes. Even if your app is on the store, there are a few advantages to providing your own release notes plist:
 
 1. You can provide release notes for multiple versions, and if users skip a version they will see the release notes for all the updates they've missed.
 
@@ -55,7 +59,7 @@ If you do wish to customise iVersion, the best time to do this is *before* the a
 
 	+ (void)initialize
 	{
-		//configure iVersion
+		//example configuration
 		[iVersion sharedInstance].appStoreID = 355313284;
 		[iVersion sharedInstance].remoteVersionsPlistURL = @"http://example.com/versions.plist";
 	}
@@ -133,13 +137,9 @@ The current version number of the app. This is set automatically from the  CFBun
 
 This is the application bundle ID, used to retrieve the latest version and release notes from iTunes. This is set automatically from the app's info.plist, so you shouldn't need to change it except for testing purposes.
 
-    @property (nonatomic, copy) NSString *appStoreLanguage;
-    
-This is the language localisation that will be specified when retrieving release notes from iTunes. This is set automatically from the device language preferences, so shouldn't need to be changed.
-
     @property (nonatomic, copy) NSString *appStoreCountry;
 
-This is the two-letter country used to specify which iTunes store to check. It is set automatically from the device locale preferences, so shouldn't need to be changed in most cases. You can override this to point to the US store, or another specific store if you prefer.
+This is the two-letter country code used to specify which iTunes store to check. It is set automatically from the device locale preferences, so shouldn't need to be changed in most cases. You can override this to point to the US store, or another specific store if you prefer, which may be a good idea if your app is only available in certain countries, however be warned that this will affect the language used to display the release notes.
 
 	@property (nonatomic, assign) BOOL showOnFirstLaunch;
 
@@ -185,11 +185,23 @@ The button label for the button the user presses if they don't want to download 
 
 The button label for the button the user presses if they want to download a new update.
 
+    @property (nonatomic, assign) BOOL disableAlertViewResizing;
+
+On iPhone, iVersion includes some logic to resize the alert view to ensure that your release notes message doesn't become truncated in landscape mode. The code to do this is a rather nasty hack, so if your alert text is very short and/or your app only needs to function in portrait mode on iPhone, you may wish to set this property to YES, which may help make your app more robust against future iOS updates. Try the *Resizing Disabled* example for a demonstration of the effect.
+
+    @property (nonatomic, assign) BOOL onlyPromptIfMainWindowIsAvailable;
+
+This setting is applicable to Mac OS only. By default, on Mac OS the iVersion alert is displayed as sheet on the main window. Some applications do not have a main window, so this approach doesn't work. For such applications, set this property to NO to allow the iVersion alert to be displayed as a regular modal window.
+
 	@property (nonatomic, assign) BOOL checkAtLaunch;
 
 Set this to NO to disable checking for local and remote release notes automatically when the app is launched or returns from the background. Disabling this option does not prevent you from manually triggering the checks by calling `checkIfNewVersion` and `checkForNewVersion` respectively.
 
-	@property (nonatomic, assign) BOOL debug;
+    @property (nonatomic, assign) BOOL verboseLogging;
+
+This option will cause iVersion to send detailed logs to the console about the version checking process. If your app is not correctly detecting a new release, this will help you figure out why. Verbose logging is enabled by default on debug builds, and disabled on release and deployment builds.
+
+	@property (nonatomic, assign) BOOL previewMode;
 
 If set to YES, iVersion will always display the contents of the local and remote versions plists, irrespective of the version number of the current build. Use this to proofread your release notes during testing, but disable it for the final release.
 
@@ -201,7 +213,7 @@ If the default iVersion behaviour doesn't meet your requirements, you can implem
 
 	@property (nonatomic, strong) NSURL *updateURL;
 
-The URL that the app will direct the user to if an update is detected and they choose to download it. If you are implementing your own download button, you should probably use the openAppPageInAppStore method instead, especially on Mac OS, as the process for opening the Mac app store is more complex than merely opening the URL.
+The URL that the app will direct the user to if an update is detected and they choose to download it. You will need to override this for in-house apps or apps that are not distributed via the App Store. If you are implementing your own download button for a regular app-store-app, you should use the openAppPageInAppStore method instead of opening this URL, especially on Mac OS, as the process for opening the Mac App Store is more complex than merely opening the URL.
 
 	@property (nonatomic, copy) NSString *ignoredVersion;
 
@@ -229,7 +241,7 @@ Advanced methods
 
 	- (void)openAppPageInAppStore;
 
-This method will open the application page in the Mac or iPhone app store, depending on which platform is running. You should use this method instead of the updateURL property if you are running on Mac OS as the process for launching the Mac app store is more complex than merely opening the URL. Note that this method depends on the `appStoreID` which is only retrieved after polling the iTunes server, so if you intend to call this method without first doing an update check, you will need to set the `appStoreID` property yourself beforehand.
+This method will open the application page in the Mac or iPhone App Store, depending on which platform is running. You should use this method instead of the updateURL property if you are running on Mac OS as the process for launching the Mac App Store is more complex than merely opening the URL. Note that this method depends on the `appStoreID` which is only retrieved after polling the iTunes server, so if you intend to call this method without first doing an update check, you will need to set the `appStoreID` property yourself beforehand.
 
 	- (void)checkIfNewVersion;
 
@@ -329,7 +341,7 @@ This time it will not say that a new version is available. In effect, you have s
 
 If you dismiss the dialog and then quit and relaunch the app you should now see nothing. This is because the app has detected that the bundle version hasn't changed since you last launched the app.
 
-To show the alerts again, delete the app from the simulator and reset the bundle version to 1.1. Alternatively, enable the debug settings to force the alerts to appear on launch.
+To show the alerts again, delete the app from the simulator and reset the bundle version to 1.1. Alternatively, enable the `previewMode` option to force the alerts to appear on launch.
 
 
 Advanced Example
