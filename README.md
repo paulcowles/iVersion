@@ -19,9 +19,9 @@ iVersion has an additional function, which is to tell users about important new 
 Supported OS & SDK Versions
 -----------------------------
 
-* Supported build target - iOS 6.0 / Mac OS 10.8 (Xcode 4.5, Apple LLVM compiler 4.1)
-* Earliest supported deployment target - iOS 5.0 / Mac OS 10.7
-* Earliest compatible deployment target - iOS 3.0 / Mac OS 10.6
+* Supported build target - iOS 8.1 / Mac OS 10.10 (Xcode 6.1, Apple LLVM compiler 6.0)
+* Earliest supported deployment target - iOS 6.0 / Mac OS 10.7
+* Earliest compatible deployment target - iOS 4.3 / Mac OS 10.6
 
 NOTE: 'Supported' means that the library has been tested with this version. 'Compatible' means that the library should work on this OS version (i.e. it doesn't rely on any unavailable SDK features) but is no longer being tested for compatibility and may require tweaking or bug fixes to run correctly.
 
@@ -29,7 +29,9 @@ NOTE: 'Supported' means that the library has been tested with this version. 'Com
 ARC Compatibility
 ------------------
 
-iVersion makes use of the ARC Helper library to automatically work with both ARC and non-ARC projects through conditional compilation. There is no need to exclude iVersion files from the ARC validation process, or to convert iVersion using the ARC conversion tool.
+As of version 1.10, iVersion requires ARC. If you wish to use iVersion in a non-ARC project, just add the -fobjc-arc compiler flag to the iVersion.m class. To do this, go to the Build Phases tab in your target settings, open the Compile Sources group, double-click iVersion.m in the list and type -fobjc-arc into the popover.
+
+If you wish to convert your whole project to ARC, comment out the #error line in iVersion.m, then run the Edit > Refactor > Convert to Objective-C ARC... tool in Xcode and make sure all files that you wish to use ARC for (including iVersion.m) are checked.
 
 
 Thread Safety
@@ -41,9 +43,9 @@ iVersion uses threading internally to avoid blocking the UI, but none of the iVe
 Installation
 --------------
 
-To install iVersion into your app, drag the iVersion.h, .m and .bundle files into your project. You can omit the .bundle if you are not interested in localised copy.
+To install iVersion into your app, drag the iVersion.h, .m and .bundle files into your project. You can omit the .bundle if you are not interested in localised copy. If you are using the IVERSION_USE_STOREKIT option (iOS only), you will also need to add the StoreKit framework.
 
-As of version 1.8, iVersion typically requires no configuration at all and will simply run automatically, using the Application's bundle ID to look it up on the App Store.
+iVersion typically requires no configuration at all and will simply run automatically, using the Application's bundle ID to look it up on the App Store.
 
 **Note:** If you have apps with matching bundle IDs on both the Mac and iOS App Stores (even if they use different capitalisation), the lookup mechanism won't work, so you'll need to set the appStoreID property, which is a numeric ID that can be found in iTunes Connect after you set up an app. This is only applicable to App Store apps.
 
@@ -123,7 +125,7 @@ This should match the iTunes app ID of your application, which you can get from 
 
 	@property (nonatomic, copy) NSString *remoteVersionsPlistURL;
 
-This is the URL of the remotely hosted plist that iVersion will check for release notes. As of iVersion 1.8, you can safely update this file *before* your new release has been approved by Apple and appeared in the store, although be cautious if there are existing versions of your app pointing at the file that use older versions of the iVersion library. For testing purposes, you may wish to create a separate copy of the file at a different address and use a build constant to switch which version the app points at. Set this value to nil if you want to just use the release notes on iTunes. Do not set it to an invalid URL such as example.com because this will waste battery, CPU and bandwidth as the app tries to check the invalid URL each time it launches.
+This is the URL of the remotely hosted plist that iVersion will check for release notes. You can safely update this file *before* your new release has been approved by Apple and appeared in the store. Set this value to nil if you want to just use the release notes on iTunes. Do not set it to an invalid URL such as http://example.com because this will waste battery, CPU and bandwidth as the app tries to check the invalid URL each time it launches. If you do not include a particular version in the plist, iVersion will not display an update alert for that version even if it detects a new version in the App Store, unless you set `useAppStoreDetailsIfNoPlistEntryFound` option to YES.
 
 	@property (nonatomic, copy) NSString *localVersionsPlistPath;
 
@@ -179,11 +181,19 @@ The button label for the button the user presses if they do not want to download
 
 	@property (nonatomic, copy) NSString *remindButtonLabel;
 
-The button label for the button the user presses if they don't want to download a new update immediately, but do want to be reminded about it in future. Set this to nil if you don't want to display the remind me button - e.g. if you don't have space on screen.
+The button label for the button the user presses if they don't want to download a new update immediately, but do want to be reminded about it in future. Set this to `@""` if you don't want to display the remind me button - e.g. if you don't have space on screen.
 
 	@property (nonatomic, copy) NSString *downloadButtonLabel;
 
 The button label for the button the user presses if they want to download a new update.
+
+    @property (nonatomic, assign) iVersionUpdatePriority updatePriority;
+
+This is a simple way to hide the ignore/remind buttons if you want to prioritize the update. There are three priority levels: `iVersionUpdatePriorityLow` is the default, and shows download, remind and ignore buttons; `iVersionUpdatePriorityMedium` hides the ignore button; `iVersionUpdatePriorityHigh` hides both the remind and ignore buttons, forcing the user to download the update immediately.
+
+    @property (nonatomic, assign) BOOL useAllAvailableLanguages;
+
+By default, iVersion will use all available languages in the iVersion.bundle, even if used in an app that does not support localisation. If you would prefer to restrict iVersion to only use the same set of languages that your application already supports, set this property to NO (YES by default).
 
     @property (nonatomic, assign) BOOL disableAlertViewResizing;
 
@@ -192,6 +202,10 @@ On iPhone, iVersion includes some logic to resize the alert view to ensure that 
     @property (nonatomic, assign) BOOL onlyPromptIfMainWindowIsAvailable;
 
 This setting is applicable to Mac OS only. By default, on Mac OS the iVersion alert is displayed as sheet on the main window. Some applications do not have a main window, so this approach doesn't work. For such applications, set this property to NO to allow the iVersion alert to be displayed as a regular modal window.
+
+    @property (nonatomic, assign) BOOL useAppStoreDetailsIfNoPlistEntryFound;
+
+If you are using the remote plist option, by default iVersion will only display an update alert if a release notes entry is found in that plist, even if a new version is detected on the app store. This allows you to delay the announcement of an update, or block the announcement of minor updates by selectivley omitting versions from the plist. If you would prefer iVersion to use the App Store release notes if no plist entry is found, set this option to YES (NO by default).
 
 	@property (nonatomic, assign) BOOL checkAtLaunch;
 
@@ -204,6 +218,10 @@ This option will cause iVersion to send detailed logs to the console about the v
 	@property (nonatomic, assign) BOOL previewMode;
 
 If set to YES, iVersion will always display the contents of the local and remote versions plists, irrespective of the version number of the current build. Use this to proofread your release notes during testing, but disable it for the final release.
+
+    @property (nonatomic, assign) BOOL useUIAlertControllerIfAvailable;
+
+By default, iVersion will use UIAlertView on iOS to display the rating prompt. UIAlertView was deprecated in iOS8 and replaced by UIAlertController. Unfortunately, unlike UIAlertView, presenting an alert with UIAlertController interferes with the ability of the app to display other controllers, and since iVersion could theoretically display an alert at any point during the app's lifetime, it might clash with the app attempting to present another view controller. For this reason, use of UIAlertController is disabled by default. Uou should only set thus property to YES if you are certain that it won't clash with your app logic (e.g, if you have disabled automatic version prompts, or if your app doesn't use any modal view controllers).
 
 
 Advanced properties
@@ -241,7 +259,7 @@ Advanced methods
 
 	- (void)openAppPageInAppStore;
 
-This method will open the application page in the Mac or iPhone App Store, depending on which platform is running. You should use this method instead of the updateURL property if you are running on Mac OS as the process for launching the Mac App Store is more complex than merely opening the URL. Note that this method depends on the `appStoreID` which is only retrieved after polling the iTunes server, so if you intend to call this method without first doing an update check, you will need to set the `appStoreID` property yourself beforehand.
+This method will open the application page in the Mac or iPhone App Store, or directly within the app, depending on which platform and OS version is running. You should use this method instead of the updateURL property, as the process for launching the app store is more complex than merely opening the URL in many cases. Note that this method depends on the `appStoreID` which is only retrieved after polling the iTunes server, and will return NO if that property is not yet set. If you intend to call this method without first doing an update check, you will need to set the `appStoreID` property yourself beforehand.
 
 	- (void)checkIfNewVersion;
 
@@ -300,20 +318,50 @@ This is called when the user asks to be reminded about a new version. This is us
 	- (void)iVersionUserDidIgnoreUpdate:(NSString *)version;
 	
 This is called when the user presses the ignore in the new version alert. This is useful if you want to log user interaction with iVersion. This method is only called if you are using the standard iVersion alert view and will not be called automatically if you provide a custom alert implementation.
+
+    - (BOOL)iVersionShouldOpenAppStore;
+    
+This method is called immediately before iVersion attempts to open the App Store, either via a URL or using the StoreKit in-app product view controller. Return NO if you wish to implement your own update page logic.
+
+    - (void)iVersionDidPresentStoreKitModal;
+    
+This method is called just after iVersion presents the StoreKit in-app product view controller. It is useful if you want to pause certain functionality in your app, etc.
+    
+    - (void)iVersionDidDismissStoreKitModal;
+
+This method is called when the user dismisses the StoreKit in-app product view controller. This is useful if you want to resume any functionality that you paused when the modal was displayed.
+
+
+StoreKit support
+------------------
+
+By default, iVersion will open the ratings page by launching the App Store app. Optionally, on iOS 6 or above you can set iVersion to display the app page without leaving the app by using the StoreKit framework. To enable this feature, set the following macro value in your prefix.pch file:
+
+    #define IVERSION_USE_STOREKIT 1
+    
+Or, alternatively, you can add `IVERSION_USE_STOREKIT=1` as a preprocessor macro. Note the following caveats to using Storekit:
+
+1. iVersion cannot open the ratings page directly in StoreKit, it can only open the app details page. The user will have to tap the ratings tab before rating.
+
+2. There have been some isolated cases of Apple rejecting apps that link against the StoreKit framework but do not offer in-app purchases. If your app does not already use StoreKit, enabling this feature of iVersion is at your own risk.
 	
 
 Localisation
 ---------------
 
-The defaults strings for iVersion are already localised for English, French, German, Italian, Spanish and Japanese.
+The defaults strings for iVersion are already localised for many languages. By default, iVersion will use all the localisations in the iVersion.bundle even in an app that is not localised, or which is only localised to a subset of the languages that iVersion supports.
+
+If you would prefer iVersion to only use the localisations that are enabled in your application (so that if your app only supports English, French and Spanish, iVersion will automatically be localised for those languages, but not for German, even though iVersion includes a German language file), set the `useAllAvailableLanguages` option to NO.
 
 iVersion will automatically use the localised release notes that you've specified on iTunes, if available.
 
-It is not recommended that you modify the strings files in the iVersion.bundle, as it will complicate updating to newer versions of iVersion. If you do want to edit the files, or open them so you can copy the keys into your own strings file, you should note that the iVersion strings files have actually been compiled as binary plists, so you'll need to open them in Xcode and use the Open As > Property List option, or they will appear as gibberish.
+It is not recommended that you modify the strings files in the iVersion.bundle, as it will complicate updating to newer versions of iVersion. The exception to this is if you would like to submit additional languages or improvements or corrections to the localisations in the iVersion project on github (which are greatly appreciated).
 
-If you want to add an additional language, or replace all the built-in strings, the simplest option is to remove the iVersion.bundle from your project and then add the iVersion keys directly to your own Localizable.strings file.
+If you want to add an additional language for iVersion in your app without submitting them back to the github project, you can add these strings directly to the appropriate Localizable.strings file in your project folder. If you wish to replace some or all of the default iVersion strings, the simplest option is to copy just those strings into your own Localizable.strings file and then modify them. iVersion will automatically use strings in the main application bundle in preference to the ones in the iVersion bundle so you can override any string in this way.
 
-If you want to override some of the localised strings but leave the others intact, you can provide localised values for any or all of the message strings by setting the keys directly in code using NSLocalizedString(...), e.g.
+If you do not want to use *any* of the default localisations, you can omit the iVersion.bundle altogether. Note that if you only want to support a subset of languages that iVersion supports, it is not neccesary to delete the other strings files from iVersion.bundle - just set `useAllAvailableLanguages` to NO, and iVersion will only use the languages that your app already supports.
+
+The old method of overriding iVersion's default strings by using individual setter methods (see below) is still supported, however the recommended approach is now to add those strings to your project's Localizable.strings file, which will be detected automatically by iVersion.
 
 	+ (void)initialize
 	{
@@ -324,11 +372,14 @@ If you want to override some of the localised strings but leave the others intac
 		[iVersion sharedInstance].ignoreButtonLabel = NSLocalizedString(@"Ignore", @"iVersion ignore button");
 		[iVersion sharedInstance].remindButtonLabel = NSLocalizedString(@"Remind Me Later", @"iVersion remind button");
 		[iVersion sharedInstance].downloadButtonLabel = NSLocalizedString(@"Download", @"iVersion download button");
-		[iVersion sharedInstance].remoteVersionsPlistURL = @"http://example.com/versions_en.plist";
 	}
 
-If you are using the remote versions Plist, and you need to provide localised release notes, the simplest way to do this is to localise the `remoteVersionsPlistURL` file and provide a different URL for each language.
-
+If you are using the remote versions Plist, and you need to provide localised release notes, the simplest way to do this is to localise the `remoteVersionsPlistURL` file and provide a different URL for each language, like this:
+    
+    + (void)initialize
+	{
+        [iVersion sharedInstance].remoteVersionsPlistURL = NSLocalizedString(@"http://example.com/versions_en.plist", @"remote iVersion plist URL");
+    }
 
 Example Projects
 ---------------
@@ -352,3 +403,231 @@ The advanced example demonstrates how you might implement a completely bespoke i
 When pressed, the app display a progress wheel and then prints the result in a console underneath the button.
 
 The example is for Mac OS, but the same thing can be applied on iOS.
+
+
+Release Notes
+----------------
+
+Version 1.11.4
+
+- Added useUIAlertControllerIfAvailable option
+- Disabled UIAlertController by default as it may interfere with in-app controller logic
+
+Version 1.11.3
+
+- Fixed critical bug in alert button handling on iOS
+- iVersion will now use UIAlertController on iOS 8+
+
+Version 1.11.2
+
+- Fixed compiler error when building for Mac OS X 10.10
+- Fixed some additional warnings
+
+Version 1.11.1
+
+- Added check for minimum supported iOS version, to prevent notifications for updates that device cannot install
+
+Version 1.11
+
+- Added `updatePriority` property for configuring update priority
+- Fixed bug where setting ignoreLabel and remindLabel to blank would cause wrong behavior
+- Fixed problem with fetching app ID when device region is set to Europe
+- No longer requires StoreKit by default (see README for details)
+- Removed disableAlertViewResizing property (no longer needed)
+- Added Turkish translation
+- Improved handling of HTTP request errors
+- Now complies with the -Weverything warning level
+- Removed deprecated methods on Mac OS
+
+Version 1.10.6
+
+- Fixed crash when plist contains versions later than latest in app store
+
+Version 1.10.5
+
+- Fixed critical bug in NSJSONSerializer implementation
+
+Version 1.10.4
+
+- Added Portuguese and Russian translations
+- Now uses NSJSONSerializer if available, which solves problem with app store descriptions containing double quotes (iOS 4.x will still use the old parser)
+
+Version 1.10.3
+
+- Fixed potential infinite loop if release notes JSON contains 0x00 characters
+- On Mac OS, release notes are now displayed in a scrolling text field (thanks to Daij-Djan for the suggestion).
+
+Version 1.10.2
+
+- Fixed issues where alert would not appear, even with preview mode enabled, if app has already been released but has no release notes
+- Addressed possible issue on iOS 5.0.x where app store link does not work (unconfirmed).
+- StoreKit framework is no longer included on Mac OS
+- Added podspec
+
+Version 1.10.1
+
+- Fixed bug where iVersion would potentially display release notes for unreleased versions in the remote version plist if the user's version is not up to date with the latest version in the App Store
+- Fixed deprecation warning when targeting iOS 6 and above
+- iVersion now displays the StoreKit product view controller correctly even if a modally presented view controller has been displayed
+- Added iVersionDidPresentStoreKitModal and iVersionDidDismissStoreKitModal delegate methods
+- Added useAppStoreDetailsIfNoPlistEntryFound option
+- Added Danish translation
+
+Version 1.10
+
+- Added new localisation system (see README for details)
+- On iOS 6, iVersion can now use the StoreKit APIs to display the product page directly within the app.
+- iVersion now requires the StoreKit framework on iOS
+- iVersion now requires ARC. To use iVersion in a non-ARC project, follow the instructions in the README file.
+- Dropped support for 32-bit Macs running Snow Leopard
+- Fixed deprecation warning in iOS 6
+
+Version 1.9.8
+
+- Added verboseLogging option to make it easier to diagnose why a new version isn't being correctly detected
+- Renamed debug property to previewMode as this better describes its function
+- Fixed a bug where certain types of download error were not correctly passed to the delegate
+
+Version 1.9.7
+
+- Fixed crash on iOS 4.x and Mac OS 10.6.x when compiled using Xcode 4.4
+
+Version 1.9.6
+
+- Added support for iOS6. Currently it does not appear to be possible to link users directly to the release notes page on iOS6, but iVersion will now at least open the app store on the app page without an error.
+- iVersion now displays correctly localised release notes
+- Removed appStoreLanguage property, as this is no longer used
+
+Version 1.9.5
+
+- Fixed cache policy so that version data is no longer cached between requests while app is running
+- Fixed typo in German translation
+
+Version 1.9.4
+
+- Now links users directly to update page on app store on iOS
+- Fixed a bug where advanced properties set in the delegate methods might be subsequently overridden by iVersion
+- Added disableAlertViewResizing option (see README for details)
+- Added Resizing Disabled example project
+- Added explicit 60-second timeout for remote version checks
+- iVersion will now no longer spawn multiple download threads if closed and re-opened whilst performing a check
+- Added Simplified Chinese translation
+
+Version 1.9.3
+
+- It is now possible again to use iVersion with apps that are not on the iOS or Mac app store using just the remoteVersionsPlist
+- It is now possible again to test release notes using debug mode
+
+Version 1.9.2
+
+- Added logic to prevent UIAlertView collapsing in landscape mode
+- Shortened default updateAvailableTitle to better fit the alert
+- Removed applicationName configuration property as it is no longer used
+- Fixed bug in Italian localised updateAvailableTitle text
+- groupNotesByVersion now defaults to NO
+
+Version 1.9.1
+
+- Fixed bug where release notes containing commas would not be displayed
+- Release notes containing unicode literals are now handled correctly
+- Now uses localeIdentifier for language parameter to match iTunes format
+
+Version 1.9
+
+- Included localisation for French, German, Italian, Spanish and Japanese
+- iVersion delegate now defaults to App Delegate unless otherwise specified
+- Now checks the correct country's iTunes store based on the user locale settings
+
+Version 1.8
+
+- iVersion is now *completely zero-config* in most cases!
+- iVersion can automatically detect app updates using official iTunes App Store search APIs based on your application bundle ID
+- It is no longer necessary to set the app store ID in most cases
+- Changed default checkPeriod to 0.0 so version check happens every launch
+- Removed PHP web service as it is no longer needed
+
+Version 1.7.3
+
+- Added missing iVersionDidNotDetectNewVersion delegate method
+- Added logic to prevent multiple prompts from being displayed if user fails to close one prompt before the next is due to be opened
+- Added workaround for change in UIApplicationWillEnterForegroundNotification implementation in iOS5
+
+Version 1.7.2
+
+- Added automatic support for ARC compile targets
+- Now requires Apple LLVM 3.0 compiler target
+
+Version 1.7.1
+
+- Now uses CFBundleShortVersionString when available instead of CFBundleVersion for the application version
+- Fixed bug in iversion.php web service where platform was not set correctly
+- Added logic to web service to use curl when available instead of file_get_contents for reading in iTunes search service data
+
+Version 1.7
+
+- Added additional delegate methods to facilitate logging
+- Renamed some delegate methods
+- Removed localChecksDisabled property and renamed remoteChecksDisabled property to checkAtLaunch for clarity and consistency with the iRate and iNotify libraries
+- Combined remoteDebug and localDebug to simplify usage
+- Added checkIfNewVersion method to manually trigger display of local version details
+
+Version 1.6.4
+
+- Updated iVersion web service to use official iTunes App Store search APIs
+- iVersion now uses CFBundleDisplayName for the application name (if available) 
+- Increased Mac app store refresh delay for older Macs
+- Simplified version comparison logic
+- Reorganised examples
+
+Version 1.6.3
+
+- Fixed web service and updated project for Xcode 4.2
+
+Version 1.6.2
+
+- Fixed version details in new version alert on iOS
+
+Version 1.6.1
+
+- Fixed crash on iOS versions before 4.0 when downloading version details.
+
+Version 1.6
+
+- Added openAppPageInAppStore method for more reliably opening Mac App Store
+- Fixed issue with local versions plist path on Mac OS
+- Renamed a couple of configuration settings names to comply with Cocoa conventions and prevent static analyzer warnings
+- Added explicit ivars to support i386 (32bit x86) targets
+
+Version 1.5
+
+- Added PHP web service example for automatically scraping version from iTunes
+- Added delegate and additional accessor properties for custom behaviour
+- Added advanced example project to demonstrate use of the delegate protocol
+
+Version 1.4
+
+- Now compatible with iOS 3.x
+- Local versions plist path can now be nested within a subfolder of Resources
+
+Version 1.3
+
+- Added Mac demo project
+- Changed Mac App Store opening mechanism to no longer launch browser first
+- Corrected error in documentation
+
+Version 1.2
+
+- Configuration no longer involves modifying iVersion.h file
+- Now detects application launch and app switching events automatically
+- No longer requires release notes to be included in update notifications
+- Simpler to localise
+
+Version 1.1
+
+- Added optional remind me button
+- Added ability to specify update period
+- Local versions file path can now be set to nil
+
+Version 1.0
+
+- Initial release

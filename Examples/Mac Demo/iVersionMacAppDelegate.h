@@ -8,10 +8,8 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface iVersionMacAppDelegate : NSObject <NSApplicationDelegate> {
-    NSWindow *window;
-}
+@interface iVersionMacAppDelegate : NSObject <NSApplicationDelegate>
 
-@property (assign) IBOutlet NSWindow *window;
+@property (weak) IBOutlet NSWindow *window;
 
 @end
